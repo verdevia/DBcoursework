@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"><title>Акаунт</title><link rel="stylesheet" href="css/style.css"></head>
+    <body>
+        <header>
+            <div class="menu">
+                <div class="container">
+                    <div class="bg"></div>
+                    <a>Акаунт</a>
+                    <div class="dropdown">
+                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
+                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
+                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
+                    </div>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="main.html">На головну</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="catalog.html">Каталог</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="cart.html">Кошик</a>
+                </div>
+            </div>
+            <div class="darken"></div>
+        </header>
+        
+        <!-- Блок для виведення даних користувача -->
+        <div class="user" id="user-info"></div> <!-- Тут будуть виводитись дані користувача -->
+
+        <!-- Форма для оновлення даних користувача -->
+        <form id="update-form">
+            <label for="phone_number">Телефон:</label>
+            <input type="text" id="phone_number" name="phone_number">
+            <label for="address">Адреса:</label>
+            <input type="text" id="address" name="address">
+            <button type="submit">Оновити</button>
+        </form>
+
+        <script>
+            // Перевірка сесії для зміни кнопок у dropdown
+            fetch('/session-status')
+                   .then(response => response.json())
+                   .then(data => {
+                       const loginBtn = document.getElementById('login-btn');
+                       const accountBtn = document.getElementById('account-btn');
+                       const logoutBtn = document.getElementById('logout-btn');
+
+                       if (data.isLoggedIn) {
+                           // Якщо користувач увійшов
+                           loginBtn.style.display = 'none';
+                           accountBtn.style.display = 'block';
+                           logoutBtn.style.display = 'block';
+                       } else {
+                           // Якщо користувач не увійшов
+                           loginBtn.style.display = 'block';
+                           accountBtn.style.display = 'none';
+                           logoutBtn.style.display = 'none';
+                       }
+                   });
+
+            // Отримання даних користувача
+            fetch('/user-data')
+                   .then(response => response.json())
+                   .then(data => {
+                       const userInfo = `
+                           <p>Логін: ${data.username}</p>
+                           <p>Email: ${data.email}</p>
+                           <p>Телефон: ${data.phone_number || 'немає'}</p>
+                           <p>Адреса: ${data.address || 'немає'}</p>
+                       `;
+                       document.getElementById('user-info').innerHTML = userInfo;
+                   })
+                   .catch(error => {
+                       // Можна показати користувачу повідомлення на екрані, якщо потрібно
+                       document.getElementById('user-info').innerHTML = 'Не вдалося отримати дані користувача';
+                   });
+
+            // Оновлення даних користувача
+            document.getElementById('update-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const phoneNumber = document.getElementById('phone_number').value;
+                const address = document.getElementById('address').value;
+
+                // Регулярний вираз для перевірки телефону
+                const phoneRegex = /^\+38-0\d{2}-\d{3}-\d{2}-\d{2}$/;
+                // Регулярний вираз для перевірки адреси (з номером будинку)
+                const addressRegex = /^м\.\s?[A-Za-zА-Яа-яІіЇїЄє]+,?\s?вул\.\s?[A-Za-zА-Яа-яІіЇїЄє\s\d]+(\s?№\s?\d+)?(\s?,?\s?кв\.\s?\d+)?$/;
+
+                if (!phoneRegex.test(phoneNumber)) {
+                    alert('Номер телефону має бути у форматі +38-0**-***-**-**');
+                    return;
+                }
+
+                if (!addressRegex.test(address)) {
+                    alert('Адреса повинна бути у форматі: м. Назва, вул. Назва, № Номер будинку, кв. Номер (необов\'язково)');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/update-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone_number: phoneNumber, address })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        // Успішно, перезавантажуємо сторінку
+                        location.reload();
+                    } else {
+                        // Якщо є помилка, показуємо alert
+                        alert(result.message || 'Помилка при оновленні даних');
+                    }
+                } catch (error) {
+                    // Якщо сталася помилка, показуємо alert
+                    alert('Помилка при оновленні даних');
+                }
+            });
+        </script>
+    </body>
+</html>

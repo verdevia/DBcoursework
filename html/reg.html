@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"><title>Зареєструватись</title><link rel="stylesheet" href="css/style.css"></head>
+    <body>
+        <header>
+            <div class="menu">
+                <div class="container">
+                    <div class="bg"></div>
+                    <a>Акаунт</a>
+                    <div class="dropdown">
+                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
+                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
+                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
+                    </div>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="main.html">На головну</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="catalog.html">Каталог</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="cart.html">Кошик</a>
+                </div>
+            </div>
+            <div class="darken"></div>
+        </header>
+
+        <div class="ent">
+            <h1>Регистрація</h1>
+
+            <script>
+                const urlParams = new URLSearchParams(window.location.search);
+                const errorMessage = urlParams.get('error');
+                if (errorMessage) {
+                    alert(errorMessage);
+                }
+
+                // Перевірка сесії для зміни кнопок у dropdown
+                fetch('/session-status')
+                    .then(response => response.json())
+                    .then(data => {
+                        const loginBtn = document.getElementById('login-btn');
+                        const accountBtn = document.getElementById('account-btn');
+                        const logoutBtn = document.getElementById('logout-btn');
+
+                        if (data.isLoggedIn) {
+                            loginBtn.style.display = 'none';
+                            accountBtn.style.display = 'block';
+                            logoutBtn.style.display = 'block';
+                        } else {
+                            loginBtn.style.display = 'block';
+                            accountBtn.style.display = 'none';
+                            logoutBtn.style.display = 'none';
+                        }
+                    });
+
+                // Функція для перевірки форми
+                function validateForm(event) {
+                    // Отримуємо значення полів форми
+                    const username = document.querySelector('input[name="username"]').value;
+                    const password = document.querySelector('input[name="pwd"]').value;
+                    const email = document.querySelector('input[name="mail"]').value;
+
+                    // Перевірка довжини логіну
+                    if (username.length < 2 || username.length > 14) {
+                        alert('Логін повинен бути від 2 до 14 символів');
+                        event.preventDefault();  // Зупиняємо відправку форми
+                        return;
+                    }
+
+                    // Перевірка довжини пароля
+                    if (password.length < 5 || password.length > 20) {
+                        alert('Пароль повинен бути від 5 до 20 символів');
+                        event.preventDefault();  // Зупиняємо відправку форми
+                        return;
+                    }
+
+                    // Перевірка коректності email
+                    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+                    if (!emailRegex.test(email)) {
+                        alert('Введіть коректну пошту (наприклад, example@domain.com)');
+                        event.preventDefault();  // Зупиняємо відправку форми
+                        return;
+                    }
+                }
+
+                // Додаємо обробник події на форму для валідації
+                document.addEventListener('DOMContentLoaded', function() {
+                    const form = document.querySelector('form');
+                    if (form) {
+                        form.addEventListener('submit', validateForm);
+                    }
+                });
+            </script>
+
+            <form action="/register" method="POST">
+                <input type="text" name="username" placeholder="Логін" size="30" required>
+                <input type="password" name="pwd" placeholder="Пароль" size="30" required>
+                <input type="text" name="mail" placeholder="E-mail" size="30" required>
+                <button type="submit">Зареєструватись</button>
+            </form>
+            <p>Вже є акаунт?</p> <a href="ent.html">Увійти</a>
+        </div>
+    </body>
+</html>

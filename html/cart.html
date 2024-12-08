@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+    <head><meta charset="utf-8"><title>Кошик</title><link rel="stylesheet" href="css/style.css"></head>
+    <body>
+        <header>
+            <div class="menu">
+                <div class="container">
+                    <div class="bg"></div>
+                    <a>Акаунт</a>
+                    <div class="dropdown">
+                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
+                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
+                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
+                    </div>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="main.html">На головну</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="catalog.html">Каталог</a>
+                </div>
+                <div class="container">
+                    <div class="bg"></div><a href="cart.html">Кошик</a>
+                </div>
+            </div>
+            <div class="darken"></div>
+        </header>
+        <script>
+            // Перевірка сесії для зміни кнопок у dropdown
+            fetch('/session-status')
+                   .then(response => response.json())
+                   .then(data => {
+                       const loginBtn = document.getElementById('login-btn');
+                       const accountBtn = document.getElementById('account-btn');
+                       const logoutBtn = document.getElementById('logout-btn');
+
+                       if (data.isLoggedIn) {
+                           // Якщо користувач увійшов
+                           loginBtn.style.display = 'none';
+                           accountBtn.style.display = 'block';
+                           logoutBtn.style.display = 'block';
+                       } else {
+                           // Якщо користувач не увійшов
+                           loginBtn.style.display = 'block';
+                           accountBtn.style.display = 'none';
+                           logoutBtn.style.display = 'none';
+                       }
+                   });
+       </script>
+    </body>
+</html>
