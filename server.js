@@ -251,6 +251,77 @@ app.get('/main', (req, res) => {
   res.sendFile(path.join(__dirname, 'html', 'main.html'));
 });
 
+// Ручка для отримання замовлення користувача
+app.get('/api/cart', (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб переглянути кошик' });
+  }
+
+  const username = req.session.user.username; // Отримуємо username з сесії
+
+  // Запит до бази даних для отримання товарів у кошику
+  const query = `
+      SELECT c.product_id, c.quantity, p.name, p.price, p.quantity_in_stock 
+      FROM cart c
+      JOIN products p ON c.product_id = p.product_id
+      WHERE c.user_id = (SELECT user_id FROM users WHERE username = ?)
+  `;
+  db.query(query, [username], (err, results) => {
+      if (err) {
+          return res.status(500).json({ message: 'Помилка запиту до бази даних' });
+      }
+      res.json(results);
+  });
+});
+
+
+// Ручка для видалення певної кількості товару з кошика
+app.post('/api/remove-from-cart', (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб видаляти товари з кошика' });
+  }
+
+  const { product_id, quantity } = req.body;
+  const username = req.session.user.username; // Отримуємо username з сесії
+
+  // Перевіряємо, чи є товар в кошику
+  const checkQuery = 'SELECT quantity FROM cart WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
+  db.query(checkQuery, [username, product_id], (err, results) => {
+      if (err) {
+          return res.status(500).json({ message: 'Помилка при перевірці кошика' });
+      }
+
+      if (results.length === 0) {
+          return res.status(404).json({ message: 'Товар не знайдений у кошику' });
+      }
+
+      const currentQuantity = results[0].quantity;
+
+      if (currentQuantity <= quantity) {
+          // Видалити товар, якщо кількість в кошику менша або рівна запитуваній
+          const deleteQuery = 'DELETE FROM cart WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
+          db.query(deleteQuery, [username, product_id], (err) => {
+              if (err) {
+                  return res.status(500).json({ message: 'Помилка при видаленні товару з кошика' });
+              }
+              res.json({ success: true, message: 'Товар видалено з кошика' });
+          });
+      } else {
+          // Оновити кількість товару в кошику
+          const newQuantity = currentQuantity - quantity;
+          const updateQuery = 'UPDATE cart SET quantity = ? WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
+          db.query(updateQuery, [newQuantity, username, product_id], (err) => {
+              if (err) {
+                  return res.status(500).json({ message: 'Помилка при оновленні кошика' });
+              }
+              res.json({ success: true, message: 'Кількість товару в кошику оновлено' });
+          });
+      }
+  });
+});
+
+
+
 // Запуск сервера
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

@@ -25,7 +25,24 @@
             </div>
             <div class="darken"></div>
         </header>
-        <div class="back"></div>
+        <div class="back">
+            <div class="cart-container">
+                <h2>Ваш кошик</h2>
+                <table class="ctable" id="cart-table">
+                    <thead>
+                        <tr class="tr">
+                            <th>Товар</th>
+                            <th>Кількість</th>
+                            <th>Ціна</th>
+                            <th>Дія</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-items">
+                        <!-- Замовлення буде відображатись тут -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
         <script>
             // Перевірка сесії для зміни кнопок у dropdown
             fetch('/session-status')
@@ -47,6 +64,47 @@
                            logoutBtn.style.display = 'none';
                        }
                    });
+                    // Завантаження замовлення для активного користувача
+                fetch('/api/cart')
+                    .then(response => response.json())
+                    .then(data => {
+                        const cartTable = document.getElementById('cart-items');
+                        if (data.length === 0) {
+                            cartTable.innerHTML = '<tr><td colspan="4">Ваш кошик порожній</td></tr>';
+                        } else {
+                            data.forEach(item => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${item.name}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${item.price} грн</td>
+                                    <td><button onclick="removeItem(${item.product_id}, ${item.quantity})">Видалити</button></td>
+                                `;
+                                cartTable.appendChild(row);
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Помилка при завантаженні кошика:', err));
+            
+                // Видалення товару з кошика
+                function removeItem(productId, currentQuantity) {
+                    const quantityToRemove = prompt(`Скільки товару видалити? (Макс: ${currentQuantity})`, currentQuantity);
+                    if (quantityToRemove && !isNaN(quantityToRemove) && quantityToRemove > 0 && quantityToRemove <= currentQuantity) {
+                        fetch('/api/remove-from-cart', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ product_id: productId, quantity: quantityToRemove })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message);
+                            location.reload(); // Перезавантажуємо сторінку для оновлення кошика
+                        })
+                        .catch(err => console.error('Помилка при видаленні товару:', err));
+                    } else {
+                        alert('Некоректне значення кількості');
+                    }
+                }
        </script>
     </body>
 </html>

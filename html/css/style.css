@@ -143,6 +143,7 @@ background-size: cover;
     background-size: 100% 100%; /* Ensures the background image maintains its natural size */
     overflow: auto;
     overflow-y: scroll;
+    align-items: center;
 }
 
 
@@ -202,3 +203,39 @@ background-size: cover;
     transition: all 0.3s ease;
 }
 
+.cart-container {    
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    border: 1px solid #ddd;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    width: 400pt;
+    margin: 15pt;
+    font-size: 14pt;
+}
+
+.cart-container h2 {
+    margin: 10px 0;
+    font-size: 20pt;
+    font-weight: bold;
+    text-align: center;
+}
+.ctable {
+    padding: 10pt;
+}
+.ctable .tr  {
+    margin: 10pt;
+}
+.usercont {
+    margin: 15pt;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ddd;
+    height: 300px;
+    width: 35%;
+}
