@@ -25,13 +25,64 @@
             </div>
             <div class="darken"></div>
         </header>
-        <div class="back" id="product-list">
-            <!-- Products will be dynamically loaded here -->
+        <div class="back" style="display: flex;">
+            <div class="search-container" style="display: flex; flex-direction: column; margin: 15pt; margin-right: 0;">
+                <input type="text" id="search-name" placeholder="Пошук за назвою...">
+                <button onclick="searchProducts()">Шукати</button>
+            </div>
+            <div class="back" style="background-image:none" id="product-list">
+                <!-- Products will be dynamically loaded here -->
+            </div>
         </div>
-        
         <script>
-             // Перевірка сесії для зміни кнопок у dropdown
-             fetch('/session-status')
+            // Функція для пошуку товарів
+            function searchProducts() {
+                const name = document.getElementById('search-name').value;
+
+                // Створюємо запит до API для пошуку товарів
+                fetch('/api/search-products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name
+                    })
+                })
+                .then(response => response.json())
+                .then(products => {
+                    const productList = document.getElementById('product-list');
+                    productList.innerHTML = ''; // Очищаємо список товарів
+
+                    products.forEach(product => {
+                        const productDiv = document.createElement('div');
+                        productDiv.classList.add('product');
+                        productDiv.innerHTML = `
+                            <div class="product-container">
+                                <img src="${product.image_url}" alt="Product Image" class="product-image">
+                                <div class="product-details">
+                                    <h3>${product.name}</h3>
+                                    <p>Айді товару: ${product.product_id}</p>
+                                    <p>Опис: ${product.description}</p>
+                                    <p>Ціна: ${product.price}грн.</p>
+                                    <p>Кількість у наявності: ${product.quantity_in_stock}</p>
+                                    <p>Айді категорії: ${product.category_id}</p>
+                                    <label for="quantity-${product.product_id}">Кількість:</label>
+                                    <input type="number" id="quantity-${product.product_id}" min="1" max="${product.quantity_in_stock}" value="1">
+                                    <button onclick="addToCart(${product.product_id})">Додати до кошика</button>
+                                </div>
+                            </div>
+                        `;
+                        productList.appendChild(productDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error searching products:', error);
+                });
+            }
+
+            // Перевірка сесії для зміни кнопок у dropdown
+            fetch('/session-status')
                    .then(response => response.json())
                    .then(data => {
                        const loginBtn = document.getElementById('login-btn');
@@ -50,9 +101,9 @@
                            logoutBtn.style.display = 'none';
                            cart.style.display = "none";
                            cempt.style.opacity = 1;
-                           hide.style.display = "none";
                        }
                    });
+
             // Fetch products from the server
             fetch('/api/products')
                 .then(response => response.json())
@@ -90,47 +141,44 @@
                 });
 
             // Функція для додавання товару до кошика
-            // Функція для додавання товару до кошика
-function addToCart(productId) {
-    // Перевіряємо, чи є користувач увійшов
-    fetch('/session-status')
-        .then(response => response.json())
-        .then(data => {
-            if (!data.isLoggedIn) {
-                alert('Будь ласка, увійдіть в акаунт перед тим, як додавати товари до кошика');
-                window.location.href = '/ent.html'; // Перенаправляємо на сторінку входу
-                return;
+            function addToCart(productId) {
+                fetch('/session-status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.isLoggedIn) {
+                            alert('Будь ласка, увійдіть в акаунт перед тим, як додавати товари до кошика');
+                            window.location.href = '/ent.html'; // Перенаправляємо на сторінку входу
+                            return;
+                        }
+
+                        const quantity = document.getElementById(`quantity-${productId}`).value;
+
+                        fetch('/api/add-to-cart', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                product_id: productId,
+                                quantity: quantity
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Товар додано до кошика');
+                            } else {
+                                alert('Сталася помилка при додаванні товару');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error adding product to cart:', error);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error checking session status:', error);
+                    });
             }
-
-            const quantity = document.getElementById(`quantity-${productId}`).value;
-
-            fetch('/api/add-to-cart', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    product_id: productId,
-                    quantity: quantity
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Товар додано до кошика');
-                } else {
-                    alert('Сталася помилка при додаванні товару');
-                }
-            })
-            .catch(error => {
-                console.error('Error adding product to cart:', error);
-            });
-        })
-        .catch(error => {
-            console.error('Error checking session status:', error);
-        });
-}
-
         </script>
     </body>
 </html>

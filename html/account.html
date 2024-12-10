@@ -49,42 +49,111 @@
             <h3>Ваші замовлення</h3>
             <div id="orders-list"></div>
         </div>
+
+        <!-- Новий блок для всіх замовлень -->
+        <div class="usercont" id="all-orders-block" style="margin-left:0; width: 1300px; display:none;">
+            <h3>Усі замовлення</h3>
+            <div id="all-orders-list"></div>
+        </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            let username = '';
-            let currentPhoneNumber = '';
-            let currentAddress = '';
+        // Перевірка сесії для зміни кнопок у dropdown
+        fetch('/session-status')
+                   .then(response => response.json())
+                   .then(data => {
+                       const loginBtn = document.getElementById('login-btn');
+                       const accountBtn = document.getElementById('account-btn');
+                       const logoutBtn = document.getElementById('logout-btn');
 
-            // Перевірка сесії для зміни кнопок у dropdown
-            fetch('/session-status')
+                       if (data.isLoggedIn) {
+                           // Якщо користувач увійшов
+                           loginBtn.style.display = 'none';
+                           accountBtn.style.display = 'block';
+                           logoutBtn.style.display = 'block';
+                       } else {
+                           // Якщо користувач не увійшов
+                           loginBtn.style.display = 'block';
+                           accountBtn.style.display = 'none';
+                           logoutBtn.style.display = 'none';
+                       }
+                   });
+    document.addEventListener('DOMContentLoaded', function () {
+        let username = '';
+        let currentPhoneNumber = '';
+        let currentAddress = '';
+        let userRole = '';
+
+        // Завантаження інформації про користувача
+        fetch('/user-data?username=' + username)
+            .then(response => response.json())
+            .then(data => {
+                currentPhoneNumber = data.phone_number || '';
+                currentAddress = data.address || '';
+                userRole = data.role || ''; // Зберігаємо роль користувача
+
+                const userInfo = `
+                    <p>Логін: ${data.username || 'немає'}</p>
+                    <p>Email: ${data.email || 'немає'}</p>
+                    <p>Телефон: ${data.phone_number || 'немає'}</p>
+                    <p>Адреса: ${data.address || 'немає'}</p>
+                    ${data.role === 'admin' ? `<p>Статус: ${data.role || 'немає'}</p>` : ''}
+                `;
+                document.getElementById('user-info').innerHTML = userInfo;
+
+                // Якщо роль admin, показуємо блок всіх замовлень
+                if (userRole === 'admin') {
+                    document.getElementById('all-orders-block').style.display = 'block';
+                    loadAllOrders(); // Завантажуємо всі замовлення
+                }
+            })
+            .catch(error => {
+                document.getElementById('user-info').innerHTML = 'Не вдалося отримати дані користувача';
+            });
+
+        // Завантаження замовлень користувача
+        fetch('/api/user-orders?username=' + username)
+            .then(response => response.json())
+            .then(data => {
+                const ordersList = document.getElementById('orders-list');
+
+                if (data.length === 0) {
+                    ordersList.innerHTML = '<p>У вас немає замовлень.</p>';
+                } else {
+                    data.forEach(order => {
+                        const orderElement = document.createElement('div');
+                        orderElement.className = 'order-item';
+                        orderElement.setAttribute('data-order-id', order.order_id);
+
+                        let productsHtml = '';
+                        order.products.forEach(product => {
+                            productsHtml += `
+                                <p>${product.name} - ${product.quantity} шт.</p>
+                            `;
+                        });
+
+                        orderElement.innerHTML = `
+                            <h4>Замовлення</h4>
+                            <div>${productsHtml}</div>
+                            <button class="delete-order-btn">Видалити замовлення</button>
+                            <hr>
+                        `;
+                        ordersList.appendChild(orderElement);
+                    });
+
+                    attachDeleteOrderHandlers();
+                }
+            });
+
+        // Функція завантаження всіх замовлень
+        function loadAllOrders() {
+            fetch('/api/all-orders')
                 .then(response => response.json())
                 .then(data => {
-                    const loginBtn = document.getElementById('login-btn');
-                    const accountBtn = document.getElementById('account-btn');
-                    const logoutBtn = document.getElementById('logout-btn');
-
-                    if (data.isLoggedIn) {
-                        username = data.username; // Отримуємо username
-                        loginBtn.style.display = 'none';
-                        accountBtn.style.display = 'block';
-                        logoutBtn.style.display = 'block';
-                    } else {
-                        loginBtn.style.display = 'block';
-                        accountBtn.style.display = 'none';
-                        logoutBtn.style.display = 'none';
-                    }
-                });
-
-            // Завантаження замовлень користувача
-            fetch('/api/user-orders?username=' + username)
-                .then(response => response.json())
-                .then(data => {
-                    const ordersList = document.getElementById('orders-list');
+                    const allOrdersList = document.getElementById('all-orders-list');
 
                     if (data.length === 0) {
-                        ordersList.innerHTML = '<p>У вас немає замовлень.</p>';
+                        allOrdersList.innerHTML = '<p>Немає жодного замовлення.</p>';
                     } else {
                         data.forEach(order => {
                             const orderElement = document.createElement('div');
@@ -99,113 +168,95 @@
                             });
 
                             orderElement.innerHTML = `
-                                <h4>Замовлення</h4>
+                                <h4>Замовлення користувача: ${order.username}</h4>
                                 <div>${productsHtml}</div>
                                 <button class="delete-order-btn">Видалити замовлення</button>
                                 <hr>
                             `;
-                            ordersList.appendChild(orderElement);
+                            allOrdersList.appendChild(orderElement);
                         });
 
-                        // Додати обробку кліків на кнопки видалення
-                        const deleteButtons = document.querySelectorAll('.delete-order-btn');
-                        deleteButtons.forEach(button => {
-                            button.addEventListener('click', function () {
-                                const orderId = this.closest('.order-item').getAttribute('data-order-id');
+                        attachDeleteOrderHandlers();
+                    }
+                });
+        }
 
-                                if (confirm('Ви впевнені, що хочете видалити це замовлення?')) {
-                                    // Надсилаємо запит на сервер для видалення замовлення без username
-                                    fetch(`/api/order/${orderId}`, {
-                                        method: 'DELETE',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            alert(data.message);
-                                            // Видаляємо замовлення з DOM
-                                            this.closest('.order-item').remove();
-                                        } else {
-                                            alert(data.message);
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Error:', error);
-                                        alert('Сталася помилка при видаленні замовлення.');
-                                    });
-                                }
-                            });
+        // Додавання обробників для видалення замовлень
+        function attachDeleteOrderHandlers() {
+            const deleteButtons = document.querySelectorAll('.delete-order-btn');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const orderId = this.closest('.order-item').getAttribute('data-order-id');
+
+                    if (confirm('Ви впевнені, що хочете видалити це замовлення?')) {
+                        fetch(`/api/order/${orderId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                this.closest('.order-item').remove();
+                            } else {
+                                alert(data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Сталася помилка при видаленні замовлення.');
                         });
                     }
-                })
-                .catch(err => {
-                    console.error('Помилка при завантаженні замовлень:', err);
-                    document.getElementById('orders-list').innerHTML = '<p>Не вдалося завантажити замовлення.</p>';
                 });
-
-            // Отримання даних користувача
-            fetch(`/user-data?username=${username}`)
-                .then(response => response.json())
-                .then(data => {
-                    currentPhoneNumber = data.phone_number || '';
-                    currentAddress = data.address || '';
-
-                    const userInfo = `
-                        <p>Логін: ${data.username || 'немає'}</p>
-                        <p>Email: ${data.email || 'немає'}</p>
-                        <p>Телефон: ${data.phone_number || 'немає'}</p>
-                        <p>Адреса: ${data.address || 'немає'}</p>
-                        ${data.role === 'admin' ? `<p>Статус: ${data.role || 'немає'}</p>` : ''}
-                    `;
-                    document.getElementById('user-info').innerHTML = userInfo;
-                })
-                .catch(error => {
-                    document.getElementById('user-info').innerHTML = 'Не вдалося отримати дані користувача';
-                });
-
-            // Оновлення даних користувача
-            document.getElementById('update-form').addEventListener('submit', async (event) => {
-                event.preventDefault();
-
-                const phoneNumber = document.getElementById('phone_number').value || currentPhoneNumber;
-                const address = document.getElementById('address').value || currentAddress;
-
-                // Регулярний вираз для перевірки телефону
-                const phoneRegex = /^\+38-0\d{2}-\d{3}-\d{2}-\d{2}$/;
-                // Регулярний вираз для перевірки адреси
-                const addressRegex = /^м\.\s?[A-Za-zА-Яа-яІіЇїЄє]+,?\s?вул\.\s?[A-Za-zА-Яа-яІіЇїЄє\s\d]+(\s?№\s?\d+)?(\s?,?\s?кв\.\s?\d+)?$/;
-
-                if (!phoneRegex.test(phoneNumber)) {
-                    alert('Номер телефону має бути у форматі +38-0**-***-**-**');
-                    return;
-                }
-
-                if (!addressRegex.test(address)) {
-                    alert('Адреса повинна бути у форматі: м. Назва, вул. Назва, № Номер будинку, кв. Номер (необов\'язково)');
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/update-user?username=${username}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phone_number: phoneNumber, address })
-                    });
-
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        location.reload();
-                    } else {
-                        alert(result.message || 'Помилка при оновленні даних');
-                    }
-                } catch (error) {
-                    alert('Помилка при оновленні даних');
-                }
             });
+        }
+
+        // Оновлення даних користувача
+        document.getElementById('update-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const phoneNumber = document.getElementById('phone_number').value || currentPhoneNumber;
+            const address = document.getElementById('address').value || currentAddress;
+
+            // Регулярний вираз для перевірки телефону
+            const phoneRegex = /^\+38-0\d{2}-\d{3}-\d{2}-\d{2}$/;
+            // Регулярний вираз для перевірки адреси
+            const addressRegex = /^м\.\s?[A-Za-zА-Яа-яІіЇїЄє]+,?\s?вул\.\s?[A-Za-zА-Яа-яІіЇїЄє\s\d]+(\s?№\s?\d+)?(\s?,?\s?кв\.\s?\d+)?$/;
+
+            if (!phoneRegex.test(phoneNumber)) {
+                alert('Номер телефону має бути у форматі +38-0**-***-**-**');
+                return;
+            }
+
+            if (!addressRegex.test(address)) {
+                alert('Адреса повинна бути у форматі: м. Назва, вул. Назва, № Номер будинку, кв. Номер (необов\'язково)');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/update-user?username=${username}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_number: phoneNumber, address })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert(result.message || 'Помилка при оновленні даних');
+                }
+            } catch (error) {
+                alert('Помилка при оновленні даних');
+            }
         });
+    });
+</script>
+
     </script>
 </body>
 </html>
+

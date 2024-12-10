@@ -71,6 +71,111 @@ app.post('/register', (req, res) => {
     });
   });
 });
+// API для отримання категорій
+app.get('/api/categories', (req, res) => {
+  const query = 'SELECT category_id, category_name FROM categories'; // Використовуємо лише потрібні поля
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Error fetching categories:', err);
+          return res.status(500).json({ message: 'Error fetching categories' });
+      }
+      res.json(results); // Повертаємо список категорій
+  });
+});
+
+// Ручка для отримання всіх замовлень
+app.get('/api/all-orders', async (req, res) => {
+  try {
+    // Перевірка авторизації
+    if (!req.session.user) {
+      return res.status(401).json({ success: false, message: 'Користувач не авторизований' });
+    }
+
+    // Запит на отримання всіх замовлень
+    const query = `
+      SELECT 
+        o.order_id, 
+        o.user_id, 
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'name', p.name,
+            'quantity', oi.quantity
+          )
+        ) AS products
+      FROM orders o
+      INNER JOIN order_items oi ON o.order_id = oi.order_id
+      INNER JOIN products p ON oi.product_id = p.product_id
+      GROUP BY o.order_id, o.user_id
+      ORDER BY o.order_id DESC;
+    `;
+
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Помилка при отриманні всіх замовлень:', err);
+        return res.status(500).json({ success: false, message: 'Не вдалося отримати всі замовлення' });
+      }
+
+      // Для кожного замовлення отримуємо username за user_id
+      const ordersWithUsername = results.map(order => {
+        return new Promise((resolve, reject) => {
+          const userQuery = 'SELECT username FROM users WHERE user_id = ?';
+          db.query(userQuery, [order.user_id], (err, userResults) => {
+            if (err) {
+              reject('Не вдалося отримати ім\'я користувача');
+            } else {
+              order.username = userResults[0] ? userResults[0].username : 'Невідомий';
+              resolve(order);
+            }
+          });
+        });
+      });
+
+      // Чекаємо на всі оброблені замовлення
+      Promise.all(ordersWithUsername)
+        .then(orders => {
+          res.status(200).json(orders);
+        })
+        .catch(error => {
+          console.error('Помилка при обробці замовлень:', error);
+          res.status(500).json({ success: false, message: 'Помилка при обробці замовлень' });
+        });
+    });
+  } catch (error) {
+    console.error('Помилка при отриманні всіх замовлень:', error);
+    res.status(500).json({ success: false, message: 'Не вдалося отримати всі замовлення' });
+  }
+});
+
+
+
+// API для пошуку товарів
+app.post('/api/search-products', (req, res) => {
+  const { name, categories } = req.body;
+  let query = 'SELECT * FROM products WHERE 1=1';
+  let queryParams = [];
+
+  // Додавання умови для пошуку за назвою
+  if (name) {
+      query += ' AND name LIKE ?';
+      queryParams.push(`%${name}%`);
+  }
+
+  // Додавання умови для пошуку за категорією
+  if (categories && categories.length > 0) {
+      query += ' AND category_id IN (?)';
+      queryParams.push(categories);
+  }
+
+  // Виконання запиту до бази даних
+  db.query(query, queryParams, (err, results) => {
+      if (err) {
+          console.error('Error searching products:', err);
+          return res.status(500).json({ message: 'Error searching products' });
+      }
+      res.json(results);
+  });
+});
+
 
 // Ручка для входу
 app.post('/login', (req, res) => {
@@ -106,11 +211,18 @@ app.get('/logout', (req, res) => {
 // Ручка для перевірки статусу сесії
 app.get('/session-status', (req, res) => {
   if (req.session.user) {
-      return res.json({ isLoggedIn: true, username: req.session.user.username });
+      return res.json({
+          isLoggedIn: true,
+          username: req.session.user.username,
+          role: req.session.user.role // Додаємо роль користувача
+      });
   } else {
-      return res.json({ isLoggedIn: false });
+      return res.json({
+          isLoggedIn: false
+      });
   }
 });
+
 
 // Ручка для отримання даних користувача
 app.get('/user-data', (req, res) => {
