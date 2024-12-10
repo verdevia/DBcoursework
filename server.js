@@ -320,6 +320,71 @@ app.post('/api/remove-from-cart', (req, res) => {
   });
 });
 
+// Ручка для оформлення замовлення
+app.post('/api/place-order', (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему, щоб оформити замовлення' });
+  }
+
+  const username = req.session.user.username; // Отримуємо username з сесії
+
+  // Отримуємо user_id за username
+  const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
+  db.query(getUserIdQuery, [username], (err, userResults) => {
+      if (err) {
+          return res.status(500).json({ success: false, message: 'Помилка при отриманні user_id' });
+      }
+
+      if (userResults.length === 0) {
+          return res.status(404).json({ success: false, message: 'Користувача не знайдено' });
+      }
+
+      const user_id = userResults[0].user_id;
+
+      // Створюємо нове замовлення
+      const createOrderQuery = 'INSERT INTO orders (user_id) VALUES (?)';
+      db.query(createOrderQuery, [user_id], (err, orderResults) => {
+          if (err) {
+              return res.status(500).json({ success: false, message: 'Помилка при створенні замовлення' });
+          }
+
+          const order_id = orderResults.insertId;
+
+          // Отримуємо товари з кошика
+          const getCartQuery = 'SELECT product_id, quantity FROM cart WHERE user_id = ?';
+          db.query(getCartQuery, [user_id], (err, cartResults) => {
+              if (err) {
+                  return res.status(500).json({ success: false, message: 'Помилка при отриманні даних кошика' });
+              }
+
+              if (cartResults.length === 0) {
+                  return res.status(400).json({ success: false, message: 'Кошик порожній' });
+              }
+
+              // Переносимо товари з кошика до order_items
+              const insertOrderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity) VALUES ?';
+              const orderItemsData = cartResults.map(item => [order_id, item.product_id, item.quantity]);
+
+              db.query(insertOrderItemsQuery, [orderItemsData], (err) => {
+                  if (err) {
+                      return res.status(500).json({ success: false, message: 'Помилка при перенесенні товарів у замовлення' });
+                  }
+
+                  // Очищаємо кошик
+                  const clearCartQuery = 'DELETE FROM cart WHERE user_id = ?';
+                  db.query(clearCartQuery, [user_id], (err) => {
+                      if (err) {
+                          return res.status(500).json({ success: false, message: 'Помилка при очищенні кошика' });
+                      }
+
+                      res.json({ success: true, message: 'Замовлення успішно оформлено' });
+                  });
+              });
+          });
+      });
+  });
+});
+
 
 
 // Запуск сервера

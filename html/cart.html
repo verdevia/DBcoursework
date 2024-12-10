@@ -41,9 +41,25 @@
                         <!-- Замовлення буде відображатись тут -->
                     </tbody>
                 </table>
+                <strong>Загальна сума: </strong><span id="total-amount">0 грн</span>
+                <button id="place-order-btn" onclick="placeOrder()">Оформити замовлення</button>
             </div>
         </div>
         <script>
+            function placeOrder() {
+    fetch('/api/place-order', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Замовлення успішно оформлено!');
+                window.location.href = 'order.html'; // Перенаправлення на сторінку замовлення
+            } else {
+                alert('Помилка оформлення замовлення: ' + data.message);
+            }
+        })
+        .catch(err => console.error('Помилка при оформленні замовлення:', err));
+}
+
             // Перевірка сесії для зміни кнопок у dropdown
             fetch('/session-status')
                    .then(response => response.json())
@@ -65,26 +81,40 @@
                        }
                    });
                     // Завантаження замовлення для активного користувача
-                fetch('/api/cart')
-                    .then(response => response.json())
-                    .then(data => {
-                        const cartTable = document.getElementById('cart-items');
-                        if (data.length === 0) {
-                            cartTable.innerHTML = '<tr><td colspan="4">Ваш кошик порожній</td></tr>';
-                        } else {
-                            data.forEach(item => {
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${item.name}</td>
-                                    <td>${item.quantity}</td>
-                                    <td>${item.price} грн</td>
-                                    <td><button onclick="removeItem(${item.product_id}, ${item.quantity})">Видалити</button></td>
-                                `;
-                                cartTable.appendChild(row);
-                            });
-                        }
-                    })
-                    .catch(err => console.error('Помилка при завантаженні кошика:', err));
+                // Завантаження замовлення для активного користувача
+// Завантаження замовлення для активного користувача
+fetch('/api/cart')
+    .then(response => response.json())
+    .then(data => {
+        const cartTable = document.getElementById('cart-items');
+        const totalAmountElement = document.getElementById('total-amount');
+        let totalAmount = 0;  // Змінна для обчислення загальної суми
+
+        if (data.length === 0) {
+            cartTable.innerHTML = '<tr><td colspan="4">Ваш кошик порожній</td></tr>';
+            totalAmountElement.innerText = '0.00 грн';  // Якщо кошик порожній, сума 0
+        } else {
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.price} грн</td>
+                    <td><button onclick="removeItem(${item.product_id}, ${item.quantity})">Видалити</button></td>
+                `;
+                cartTable.appendChild(row);
+
+                // Обчислюємо загальну суму
+                totalAmount += item.price * item.quantity;
+            });
+
+            // Округлюємо до двох знаків після коми
+            totalAmountElement.innerText = `${totalAmount.toFixed(2)} грн`;  
+        }
+    })
+
+    .catch(err => console.error('Помилка при завантаженні кошика:', err));
+
             
                 // Видалення товару з кошика
                 function removeItem(productId, currentQuantity) {
