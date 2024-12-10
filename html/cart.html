@@ -25,7 +25,7 @@
             </div>
             <div class="darken"></div>
         </header>
-        <div class="back">
+        <div class="back" style="display: flex; flex-direction: column; align-items: center;">
             <div class="cart-container">
                 <h2>Ваш кошик</h2>
                 <table class="ctable" id="cart-table">
@@ -52,7 +52,7 @@
         .then(data => {
             if (data.success) {
                 alert('Замовлення успішно оформлено!');
-                window.location.href = 'order.html'; // Перенаправлення на сторінку замовлення
+                window.location.href = 'main.html'; // Перенаправлення на сторінку замовлення
             } else {
                 alert('Помилка оформлення замовлення: ' + data.message);
             }

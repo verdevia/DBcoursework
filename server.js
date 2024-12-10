@@ -326,61 +326,276 @@ app.post('/api/place-order', (req, res) => {
       return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему, щоб оформити замовлення' });
   }
 
-  const username = req.session.user.username; // Отримуємо username з сесії
+  const username = req.session.user.username;
 
-  // Отримуємо user_id за username
-  const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
-  db.query(getUserIdQuery, [username], (err, userResults) => {
+  // Починаємо транзакцію
+  db.beginTransaction((err) => {
       if (err) {
-          return res.status(500).json({ success: false, message: 'Помилка при отриманні user_id' });
+          return res.status(500).json({ success: false, message: 'Помилка при створенні транзакції' });
       }
 
-      if (userResults.length === 0) {
-          return res.status(404).json({ success: false, message: 'Користувача не знайдено' });
-      }
-
-      const user_id = userResults[0].user_id;
-
-      // Створюємо нове замовлення
-      const createOrderQuery = 'INSERT INTO orders (user_id) VALUES (?)';
-      db.query(createOrderQuery, [user_id], (err, orderResults) => {
-          if (err) {
-              return res.status(500).json({ success: false, message: 'Помилка при створенні замовлення' });
+      // Отримуємо user_id за username
+      const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
+      db.query(getUserIdQuery, [username], (err, userResults) => {
+          if (err || userResults.length === 0) {
+              db.rollback(() => {
+                  res.status(500).json({ success: false, message: 'Помилка при отриманні user_id або користувач не знайдений' });
+              });
+              return;
           }
 
-          const order_id = orderResults.insertId;
+          const user_id = userResults[0].user_id;
 
-          // Отримуємо товари з кошика
-          const getCartQuery = 'SELECT product_id, quantity FROM cart WHERE user_id = ?';
-          db.query(getCartQuery, [user_id], (err, cartResults) => {
+          // Створюємо нове замовлення
+          const createOrderQuery = 'INSERT INTO orders (user_id) VALUES (?)';
+          db.query(createOrderQuery, [user_id], (err, orderResults) => {
               if (err) {
-                  return res.status(500).json({ success: false, message: 'Помилка при отриманні даних кошика' });
+                  db.rollback(() => {
+                      res.status(500).json({ success: false, message: 'Помилка при створенні замовлення' });
+                  });
+                  return;
               }
 
-              if (cartResults.length === 0) {
-                  return res.status(400).json({ success: false, message: 'Кошик порожній' });
-              }
+              const order_id = orderResults.insertId;
 
-              // Переносимо товари з кошика до order_items
-              const insertOrderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity) VALUES ?';
-              const orderItemsData = cartResults.map(item => [order_id, item.product_id, item.quantity]);
-
-              db.query(insertOrderItemsQuery, [orderItemsData], (err) => {
-                  if (err) {
-                      return res.status(500).json({ success: false, message: 'Помилка при перенесенні товарів у замовлення' });
+              // Отримуємо товари з кошика
+              const getCartQuery = 'SELECT product_id, quantity FROM cart WHERE user_id = ?';
+              db.query(getCartQuery, [user_id], (err, cartResults) => {
+                  if (err || cartResults.length === 0) {
+                      db.rollback(() => {
+                          res.status(500).json({ success: false, message: 'Помилка при отриманні даних кошика або кошик порожній' });
+                      });
+                      return;
                   }
 
-                  // Очищаємо кошик
-                  const clearCartQuery = 'DELETE FROM cart WHERE user_id = ?';
-                  db.query(clearCartQuery, [user_id], (err) => {
+                  // Переносимо товари з кошика до order_items
+                  const insertOrderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity) VALUES ?';
+                  const orderItemsData = cartResults.map(item => [order_id, item.product_id, item.quantity]);
+
+                  db.query(insertOrderItemsQuery, [orderItemsData], (err) => {
                       if (err) {
-                          return res.status(500).json({ success: false, message: 'Помилка при очищенні кошика' });
+                          db.rollback(() => {
+                              res.status(500).json({ success: false, message: 'Помилка при перенесенні товарів у замовлення' });
+                          });
+                          return;
                       }
 
-                      res.json({ success: true, message: 'Замовлення успішно оформлено' });
+                      // Зменшуємо кількість товарів у products
+                      const updateProductQuantitiesQuery = `
+                          UPDATE products p
+                          JOIN order_items oi ON p.product_id = oi.product_id
+                          SET p.quantity_in_stock = p.quantity_in_stock - oi.quantity
+                          WHERE oi.order_id = ?
+                      `;
+                      db.query(updateProductQuantitiesQuery, [order_id], (err) => {
+                          if (err) {
+                              db.rollback(() => {
+                                  res.status(500).json({ success: false, message: 'Помилка при оновленні кількості товарів' });
+                              });
+                              return;
+                          }
+
+                          // Очищаємо кошик
+                          const clearCartQuery = 'DELETE FROM cart WHERE user_id = ?';
+                          db.query(clearCartQuery, [user_id], (err) => {
+                              if (err) {
+                                  db.rollback(() => {
+                                      res.status(500).json({ success: false, message: 'Помилка при очищенні кошика' });
+                                  });
+                                  return;
+                              }
+
+                              // Завершуємо транзакцію
+                              db.commit((err) => {
+                                  if (err) {
+                                      db.rollback(() => {
+                                          res.status(500).json({ success: false, message: 'Помилка при завершенні транзакції' });
+                                      });
+                                      return;
+                                  }
+
+                                  res.json({ success: true, message: 'Замовлення успішно оформлено' });
+                              });
+                          });
+                      });
                   });
               });
           });
+      });
+  });
+});
+
+
+
+app.get('/api/user-orders', (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб переглянути замовлення.' });
+  }
+
+  const username = req.session.user.username;
+
+  // Отримуємо user_id
+  const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
+  db.query(getUserIdQuery, [username], (err, userResults) => {
+      if (err || userResults.length === 0) {
+          return res.status(500).json({ message: 'Помилка при отриманні даних користувача.' });
+      }
+
+      const userId = userResults[0].user_id;
+
+      // Отримуємо замовлення користувача
+      const getOrdersQuery = `
+          SELECT o.order_id, oi.product_id, oi.quantity, p.name
+          FROM orders o
+          JOIN order_items oi ON o.order_id = oi.order_id
+          JOIN products p ON oi.product_id = p.product_id
+          WHERE o.user_id = ?
+      `;
+      db.query(getOrdersQuery, [userId], (err, ordersResults) => {
+          if (err) {
+              return res.status(500).json({ message: 'Помилка при отриманні замовлень.' });
+          }
+
+          const ordersMap = {};
+
+          // Групуємо товари за замовленням
+          ordersResults.forEach(item => {
+              if (!ordersMap[item.order_id]) {
+                  ordersMap[item.order_id] = {
+                      order_id: item.order_id,
+                      order_date: item.order_date,
+                      products: [],
+                      total: 0
+                  };
+              }
+              ordersMap[item.order_id].products.push({
+                  product_id: item.product_id,
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.price_per_item
+              });
+              ordersMap[item.order_id].total += item.quantity * item.price_per_item;
+          });
+
+          const ordersArray = Object.values(ordersMap);
+          res.json(ordersArray);
+      });
+  });
+});
+
+app.get('/api/user-orders', (req, res) => {
+  if (!req.session.user) {
+      return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб переглянути замовлення.' });
+  }
+
+  const username = req.session.user.username;
+
+  // Отримуємо user_id
+  const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
+  db.query(getUserIdQuery, [username], (err, userResults) => {
+      if (err || userResults.length === 0) {
+          return res.status(500).json({ message: 'Помилка при отриманні даних користувача.' });
+      }
+
+      const userId = userResults[0].user_id;
+
+      // Отримуємо замовлення користувача
+      const getOrdersQuery = `
+          SELECT o.order_id, oi.product_id, oi.quantity, p.name
+          FROM orders o
+          JOIN order_items oi ON o.order_id = oi.order_id
+          JOIN products p ON oi.product_id = p.product_id
+          WHERE o.user_id = ?
+          ORDER BY o.order_id
+      `;
+      db.query(getOrdersQuery, [userId], (err, ordersResults) => {
+          if (err) {
+              return res.status(500).json({ message: 'Помилка при отриманні замовлень.' });
+          }
+
+          const ordersMap = {};
+
+          // Групуємо товари за замовленням
+          ordersResults.forEach(item => {
+              if (!ordersMap[item.order_id]) {
+                  ordersMap[item.order_id] = {
+                      order_id: item.order_id,
+                      products: []
+                  };
+              }
+              ordersMap[item.order_id].products.push({
+                  product_id: item.product_id,
+                  name: item.name,
+                  quantity: item.quantity
+              });
+          });
+
+          const ordersArray = Object.values(ordersMap);
+          res.json(ordersArray);
+      });
+  });
+});
+
+// Ручка для видалення замовлення за orderId
+app.delete('/api/order/:orderId', (req, res) => {
+  const orderId = req.params.orderId;  // Отримуємо orderId з параметрів маршруту
+
+  // Спочатку отримуємо всі продукти та їх кількість для даного orderId
+  db.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId], (err, items) => {
+    if (err) {
+      console.error('Помилка при отриманні товарів для замовлення:', err);
+      return res.status(500).json({ success: false, message: 'Помилка при отриманні товарів для замовлення.' });
+    }
+
+    if (items.length === 0) {
+      return res.status(404).json({ success: false, message: 'Замовлення не знайдено.' });
+    }
+
+    // Оновлюємо кількість товарів у таблиці products
+    let updateProductQueries = [];
+    items.forEach(item => {
+      // Для кожного товару додаємо його кількість до quantity_in_stock
+      updateProductQueries.push(new Promise((resolve, reject) => {
+        db.query('UPDATE products SET quantity_in_stock = quantity_in_stock + ? WHERE product_id = ?', [item.quantity, item.product_id], (err) => {
+          if (err) {
+            reject('Помилка при оновленні кількості товару в продуктовій таблиці');
+          } else {
+            resolve();
+          }
+        });
+      }));
+    });
+
+    // Чекаємо, поки всі оновлення будуть завершені
+    Promise.all(updateProductQueries)
+      .then(() => {
+        // Тепер видаляємо елементи замовлення з таблиці order_items
+        db.query('DELETE FROM order_items WHERE order_id = ?', [orderId], (err) => {
+          if (err) {
+            console.error('Помилка при видаленні елементів замовлення:', err);
+            return res.status(500).json({ success: false, message: 'Помилка при видаленні елементів замовлення.' });
+          }
+
+          // Потім видаляємо саме замовлення з таблиці orders
+          db.query('DELETE FROM orders WHERE order_id = ?', [orderId], (err, result) => {
+            if (err) {
+              console.error('Помилка при видаленні замовлення:', err);
+              return res.status(500).json({ success: false, message: 'Помилка при видаленні замовлення.' });
+            }
+
+            // Якщо не було знайдено жодного замовлення для видалення
+            if (result.affectedRows === 0) {
+              return res.status(404).json({ success: false, message: 'Замовлення не знайдено.' });
+            }
+
+            // Успішне видалення
+            return res.json({ success: true, message: 'Замовлення успішно видалено.' });
+          });
+        });
+      })
+      .catch((err) => {
+        console.error('Помилка при оновленні кількості товарів:', err);
+        return res.status(500).json({ success: false, message: 'Помилка при оновленні кількості товарів.' });
       });
   });
 });
