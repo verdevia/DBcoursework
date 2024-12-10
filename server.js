@@ -14,6 +14,12 @@ const db = mysql.createConnection({
   database: 'onlinepharmacy'
 });
 
+app.use(require('express-session')({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true
+}));
+
 // Перевірка підключення до бази даних
 db.connect((err) => {
   if (err) {
@@ -100,9 +106,9 @@ app.get('/logout', (req, res) => {
 // Ручка для перевірки статусу сесії
 app.get('/session-status', (req, res) => {
   if (req.session.user) {
-    res.json({ isLoggedIn: true });
+      return res.json({ isLoggedIn: true, username: req.session.user.username });
   } else {
-    res.json({ isLoggedIn: false });
+      return res.json({ isLoggedIn: false });
   }
 });
 
@@ -153,6 +159,52 @@ app.post('/update-user', (req, res) => {
     });
   });
 
+// Ручка для додавання товару в кошик
+app.post('/api/add-to-cart', (req, res) => {
+    const { product_id, quantity } = req.body;
+
+    // Перевіряємо, чи є в сесії user
+    if (!req.session.user) {
+        return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему перед додаванням товару до кошика' });
+    }
+
+    const username = req.session.user.username; // Отримуємо username з сесії
+
+    // Запит для отримання user_id за username
+    const query = 'SELECT user_id FROM users WHERE username = ?';
+    db.query(query, [username], (err, results) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: 'Помилка при отриманні user_id' });
+        }
+
+        if (results.length > 0) {
+            const user_id = results[0].user_id;
+
+            // Додаємо товар до кошика
+            const insertQuery = 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
+            db.query(insertQuery, [user_id, product_id, quantity], (err) => {
+                if (err) {
+                    console.error('Error adding to cart:', err);
+                    return res.status(500).json({ success: false, message: 'Помилка при додаванні товару до кошика' });
+                }
+                res.json({ success: true });
+            });
+        } else {
+            res.status(404).json({ success: false, message: 'Користувач не знайдений' });
+        }
+    });
+});
+
+// Ручка для отримання продуктів
+app.get('/api/products', (req, res) => {
+  db.query('SELECT * FROM Products', (err, results) => {
+    if (err) {
+      return res.status(500).json({ message: 'Помилка запиту до бази даних' });
+    }
+    res.json(results);
+  });
+});
+
 // Ручка для відображення головної сторінки
 app.get('/main', (req, res) => {
   res.sendFile(path.join(__dirname, 'html', 'main.html'));
@@ -162,16 +214,3 @@ app.get('/main', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-
-// Ручка для отримання даних про продукти
-app.get('/api/products', (req, res) => {
-  // Запит до бази даних для отримання всіх продуктів
-  db.query('SELECT * FROM Products', (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: 'Помилка запиту до бази даних' });
-    }
-    // Повертаємо продукти у форматі JSON
-    res.json(results);
-  });
-});
-
