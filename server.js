@@ -159,11 +159,10 @@ app.post('/update-user', (req, res) => {
     });
   });
 
-// Ручка для додавання товару в кошик
-app.post('/api/add-to-cart', (req, res) => {
+  app.post('/api/add-to-cart', (req, res) => {
     const { product_id, quantity } = req.body;
 
-    // Перевіряємо, чи є в сесії user
+    // Перевірка, чи є користувач у сесії
     if (!req.session.user) {
         return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему перед додаванням товару до кошика' });
     }
@@ -180,14 +179,56 @@ app.post('/api/add-to-cart', (req, res) => {
         if (results.length > 0) {
             const user_id = results[0].user_id;
 
-            // Додаємо товар до кошика
-            const insertQuery = 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
-            db.query(insertQuery, [user_id, product_id, quantity], (err) => {
+            // Перевірка наявної кількості товару на складі
+            const checkStockQuery = 'SELECT quantity_in_stock FROM products WHERE product_id = ?';
+            db.query(checkStockQuery, [product_id], (err, stockResults) => {
                 if (err) {
-                    console.error('Error adding to cart:', err);
-                    return res.status(500).json({ success: false, message: 'Помилка при додаванні товару до кошика' });
+                    return res.status(500).json({ success: false, message: 'Помилка при перевірці наявності товару' });
                 }
-                res.json({ success: true });
+
+                if (stockResults.length === 0) {
+                    return res.status(404).json({ success: false, message: 'Товар не знайдений' });
+                }
+
+                const availableQuantity = stockResults[0].quantity_in_stock;
+
+                // Перевірка, чи не перевищує кількість на складі
+                if (quantity > availableQuantity) {
+                    return res.status(400).json({ success: false, message: 'Запитувана кількість товару перевищує наявну' });
+                }
+
+                // Перевірка, чи товар вже є в кошику
+                const checkQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';
+                db.query(checkQuery, [user_id, product_id], (err, checkResults) => {
+                    if (err) {
+                        return res.status(500).json({ success: false, message: 'Помилка при перевірці кошика' });
+                    }
+
+                    if (checkResults.length > 0) {
+                        // Якщо товар є в кошику, збільшуємо кількість
+                        const newQuantity = checkResults[0].quantity + parseInt(quantity, 10); // Переконатися, що кількість числова
+                        if (newQuantity > availableQuantity) {
+                            return res.status(400).json({ success: false, message: 'Запитувана кількість товару перевищує наявну' });
+                        }
+
+                        const updateQuery = 'UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?';
+                        db.query(updateQuery, [newQuantity, user_id, product_id], (err) => {
+                            if (err) {
+                                return res.status(500).json({ success: false, message: 'Помилка при оновленні кошика' });
+                            }
+                            res.json({ success: true, message: 'Кількість товару в кошику оновлено' });
+                        });
+                    } else {
+                        // Якщо товару ще немає, додаємо його в кошик
+                        const insertQuery = 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
+                        db.query(insertQuery, [user_id, product_id, quantity], (err) => {
+                            if (err) {
+                                return res.status(500).json({ success: false, message: 'Помилка при додаванні товару до кошика' });
+                            }
+                            res.json({ success: true, message: 'Товар додано до кошика' });
+                        });
+                    }
+                });
             });
         } else {
             res.status(404).json({ success: false, message: 'Користувач не знайдений' });
