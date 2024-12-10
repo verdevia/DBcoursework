@@ -112,7 +112,7 @@ app.get('/user-data', (req, res) => {
     return res.status(403).json({ message: 'Немає доступу' });
   }
 
-  const query = 'SELECT username, email, phone_number, address FROM users WHERE username = ?';
+  const query = 'SELECT username, email, phone_number, address, role FROM users WHERE username = ?';
   db.query(query, [req.session.user.username], (err, results) => {
     if (err) {
       return res.status(500).json({ message: 'Помилка на сервері' });
@@ -162,3 +162,16 @@ app.get('/main', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+// Ручка для отримання даних про продукти
+app.get('/api/products', (req, res) => {
+  // Запит до бази даних для отримання всіх продуктів
+  db.query('SELECT * FROM Products', (err, results) => {
+    if (err) {
+      return res.status(500).json({ message: 'Помилка запиту до бази даних' });
+    }
+    // Повертаємо продукти у форматі JSON
+    res.json(results);
+  });
+});
+

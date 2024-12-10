@@ -8,7 +8,7 @@
                     <div class="bg"></div>
                     <a>Акаунт</a>
                     <div class="dropdown">
-                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
+                        <a id="login-btn" href="ent.html" style="text-decoration: underline;">Увійти</a> <!-- Кнопка для входу -->
                         <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
                         <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
                     </div>
@@ -48,13 +48,15 @@
                    });
        </script>
         <div class="ent">
-            <h1>Увійти</h1>
-            <form action="/login" method="POST"> <!-- Зміна action і метод -->
-                <input type="text" name="username" placeholder="Логін" size="30" required>
-                <input type="password" name="pwd" placeholder="Пароль" size="30" required>
-                <button type="submit">Увійти</button>
-            </form>
-            <p>Немає акаунту?</p> <a href="reg.html">Зареєструватись</a>
+            <div class="entmen">
+                <h1>Увійти</h1>
+                <form action="/login" method="POST"> <!-- Зміна action і метод -->
+                    <input type="text" name="username" placeholder="Логін" size="30" required>
+                    <input type="password" name="pwd" placeholder="Пароль" size="30" required>
+                    <button type="submit">Увійти</button>
+                </form>
+                <p>Немає акаунту?</p> <a href="reg.html">Зареєструватись</a>
+            </div>
         </div>
     </body>
 </html>

@@ -17,7 +17,7 @@
                     <div class="bg"></div><a href="main.html">На головну</a>
                 </div>
                 <div class="container">
-                    <div class="bg"></div><a href="catalog.html">Каталог</a>
+                    <div class="bg"></div><a href="catalog.html" style="text-decoration: underline;">Каталог</a>
                 </div>
                 <div class="container">
                     <div class="bg"></div><a href="cart.html">Кошик</a>
@@ -25,9 +25,13 @@
             </div>
             <div class="darken"></div>
         </header>
+        <div class="back" id="product-list">
+            <!-- Products will be dynamically loaded here -->
+        </div>
+        
         <script>
-            // Перевірка сесії для зміни кнопок у dropdown
-            fetch('/session-status')
+             // Перевірка сесії для зміни кнопок у dropdown
+             fetch('/session-status')
                    .then(response => response.json())
                    .then(data => {
                        const loginBtn = document.getElementById('login-btn');
@@ -46,6 +50,38 @@
                            logoutBtn.style.display = 'none';
                        }
                    });
-       </script>
+            // Fetch products from the server
+            fetch('/api/products')
+                .then(response => response.json())
+                .then(products => {
+                    const productList = document.getElementById('product-list');
+                    products.forEach(product => {
+                        // Create a product div
+                        const productDiv = document.createElement('div');
+                        productDiv.classList.add('product');
+
+                        // Add product content
+                        productDiv.innerHTML = `
+                            <div class="product-container">
+                                <img src="${product.image_url}" alt="Product Image" class="product-image">
+                                <div class="product-details">
+                                    <h3>${product.name}</h3>
+                                    <p>Айді товару: ${product.product_id}</p>
+                                    <p>Опис: ${product.description}</p>
+                                    <p>Ціна: ${product.price}грн.</p>
+                                    <p>Кількість у наявності: ${product.quantity_in_stock}</p>
+                                    <p>Айді категорії: ${product.category_id}</p>
+                                </div>
+                            </div>
+                        `;
+
+                        // Append the product to the product list
+                        productList.appendChild(productDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching products:', error);
+                });
+        </script>
     </body>
 </html>
