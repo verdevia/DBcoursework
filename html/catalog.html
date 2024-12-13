@@ -8,9 +8,9 @@
                     <div class="bg"></div>
                     <a>Акаунт</a>
                     <div class="dropdown">
-                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
-                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
-                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
+                        <a id="login-btn" href="ent.html">Увійти</a>
+                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> 
+                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> 
                     </div>
                 </div>
                 <div class="container">
@@ -31,15 +31,12 @@
                 <button onclick="searchProducts()">Шукати</button>
             </div>
             <div class="back" style="background-image:none" id="product-list">
-                <!-- Products will be dynamically loaded here -->
             </div>
         </div>
         <script>
-            // Функція для пошуку товарів
             function searchProducts() {
                 const name = document.getElementById('search-name').value;
 
-                // Створюємо запит до API для пошуку товарів
                 fetch('/api/search-products', {
                     method: 'POST',
                     headers: {
@@ -52,7 +49,7 @@
                 .then(response => response.json())
                 .then(products => {
                     const productList = document.getElementById('product-list');
-                    productList.innerHTML = ''; // Очищаємо список товарів
+                    productList.innerHTML = ''; 
 
                     products.forEach(product => {
                         const productDiv = document.createElement('div');
@@ -81,7 +78,6 @@
                 });
             }
 
-            // Перевірка сесії для зміни кнопок у dropdown
             fetch('/session-status')
                    .then(response => response.json())
                    .then(data => {
@@ -90,12 +86,10 @@
                        const logoutBtn = document.getElementById('logout-btn');
 
                        if (data.isLoggedIn) {
-                           // Якщо користувач увійшов
                            loginBtn.style.display = 'none';
                            accountBtn.style.display = 'block';
                            logoutBtn.style.display = 'block';
                        } else {
-                           // Якщо користувач не увійшов
                            loginBtn.style.display = 'block';
                            accountBtn.style.display = 'none';
                            logoutBtn.style.display = 'none';
@@ -104,17 +98,13 @@
                        }
                    });
 
-            // Fetch products from the server
             fetch('/api/products')
                 .then(response => response.json())
                 .then(products => {
                     const productList = document.getElementById('product-list');
                     products.forEach(product => {
-                        // Create a product div
                         const productDiv = document.createElement('div');
                         productDiv.classList.add('product');
-
-                        // Add product content
                         productDiv.innerHTML = `
                             <div class="product-container">
                                 <img src="${product.image_url}" alt="Product Image" class="product-image">
@@ -132,7 +122,6 @@
                             </div>
                         `;
 
-                        // Append the product to the product list
                         productList.appendChild(productDiv);
                     });
                 })
@@ -140,14 +129,13 @@
                     console.error('Error fetching products:', error);
                 });
 
-            // Функція для додавання товару до кошика
             function addToCart(productId) {
                 fetch('/session-status')
                     .then(response => response.json())
                     .then(data => {
                         if (!data.isLoggedIn) {
                             alert('Будь ласка, увійдіть в акаунт перед тим, як додавати товари до кошика');
-                            window.location.href = '/ent.html'; // Перенаправляємо на сторінку входу
+                            window.location.href = '/ent.html'; 
                             return;
                         }
 

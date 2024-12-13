@@ -6,7 +6,6 @@ const session = require('express-session');
 const app = express();
 const port = 3000;
 
-// Підключення до бази даних MySQL
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
@@ -20,7 +19,6 @@ app.use(require('express-session')({
   saveUninitialized: true
 }));
 
-// Перевірка підключення до бази даних
 db.connect((err) => {
   if (err) {
     console.error('Помилка підключення до бази даних:', err.stack);
@@ -29,25 +27,20 @@ db.connect((err) => {
   console.log('Підключено до бази даних MySQL');
 });
 
-// Для парсингу даних з форми
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Для підтримки сесій
 app.use(session({
   secret: 'secret_key',
   resave: false,
   saveUninitialized: true
 }));
 
-// Вказуємо папку для статичних файлів
 app.use(express.static(path.join(__dirname, 'html')));
 
-// Ручка для реєстрації
 app.post('/register', (req, res) => {
   const { username, pwd, mail } = req.body;
 
-  // Перевірка чи користувач вже існує
   db.query('SELECT * FROM users WHERE username = ?', [username], (err, results) => {
     if (err) {
       return res.redirect('/reg.html?error=Помилка запиту до бази даних');
@@ -57,41 +50,37 @@ app.post('/register', (req, res) => {
       return res.redirect('/reg.html?error=Користувач з таким логіном вже існує');
     }
 
-    // Додавання нового користувача до бази даних
     db.query('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', [username, pwd, mail], (err, result) => {
       if (err) {
         return res.redirect('/reg.html?error=Помилка при реєстрації користувача');
       }
 
-      // Після успішної реєстрації, зберігаємо користувача в сесії
       req.session.user = { username, email: mail };
 
-      // Перенаправлення на сторінку входу
       res.redirect('/main.html');
     });
   });
 });
-// API для отримання категорій
+
 app.get('/api/categories', (req, res) => {
-  const query = 'SELECT category_id, category_name FROM categories'; // Використовуємо лише потрібні поля
+  const query = 'SELECT category_id, category_name FROM categories'; 
   db.query(query, (err, results) => {
       if (err) {
           console.error('Error fetching categories:', err);
           return res.status(500).json({ message: 'Error fetching categories' });
       }
-      res.json(results); // Повертаємо список категорій
+      res.json(results); 
   });
 });
 
-// Ручка для отримання всіх замовлень
+
 app.get('/api/all-orders', async (req, res) => {
   try {
-    // Перевірка авторизації
+
     if (!req.session.user) {
       return res.status(401).json({ success: false, message: 'Користувач не авторизований' });
     }
 
-    // Запит на отримання всіх замовлень
     const query = `
       SELECT 
         o.order_id, 
@@ -115,7 +104,6 @@ app.get('/api/all-orders', async (req, res) => {
         return res.status(500).json({ success: false, message: 'Не вдалося отримати всі замовлення' });
       }
 
-      // Для кожного замовлення отримуємо username за user_id
       const ordersWithUsername = results.map(order => {
         return new Promise((resolve, reject) => {
           const userQuery = 'SELECT username FROM users WHERE user_id = ?';
@@ -130,7 +118,6 @@ app.get('/api/all-orders', async (req, res) => {
         });
       });
 
-      // Чекаємо на всі оброблені замовлення
       Promise.all(ordersWithUsername)
         .then(orders => {
           res.status(200).json(orders);
@@ -146,27 +133,21 @@ app.get('/api/all-orders', async (req, res) => {
   }
 });
 
-
-
-// API для пошуку товарів
 app.post('/api/search-products', (req, res) => {
   const { name, categories } = req.body;
   let query = 'SELECT * FROM products WHERE 1=1';
   let queryParams = [];
 
-  // Додавання умови для пошуку за назвою
   if (name) {
       query += ' AND name LIKE ?';
       queryParams.push(`%${name}%`);
   }
 
-  // Додавання умови для пошуку за категорією
   if (categories && categories.length > 0) {
       query += ' AND category_id IN (?)';
       queryParams.push(categories);
   }
 
-  // Виконання запиту до бази даних
   db.query(query, queryParams, (err, results) => {
       if (err) {
           console.error('Error searching products:', err);
@@ -176,8 +157,6 @@ app.post('/api/search-products', (req, res) => {
   });
 });
 
-
-// Ручка для входу
 app.post('/login', (req, res) => {
   const { username, pwd } = req.body;
 
@@ -190,15 +169,12 @@ app.post('/login', (req, res) => {
       return res.redirect('/ent.html?error=Неправильний логін або пароль');
     }
 
-    // Збереження сесії після успішного входу
     req.session.user = { username: results[0].username, email: results[0].email };
 
-    // Перенаправлення на головну сторінку
     res.redirect('/main.html');
   });
 });
 
-// Ручка для виходу
 app.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -208,13 +184,12 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Ручка для перевірки статусу сесії
 app.get('/session-status', (req, res) => {
   if (req.session.user) {
       return res.json({
           isLoggedIn: true,
           username: req.session.user.username,
-          role: req.session.user.role // Додаємо роль користувача
+          role: req.session.user.role 
       });
   } else {
       return res.json({
@@ -223,8 +198,6 @@ app.get('/session-status', (req, res) => {
   }
 });
 
-
-// Ручка для отримання даних користувача
 app.get('/user-data', (req, res) => {
   if (!req.session.user) {
     return res.status(403).json({ message: 'Немає доступу' });
@@ -240,7 +213,6 @@ app.get('/user-data', (req, res) => {
   });
 });
 
-// Ручка для оновлення номеру телефону та адреси
 app.post('/update-user', (req, res) => {
     if (!req.session.user) {
       return res.status(403).json({ message: 'Немає доступу' });
@@ -248,7 +220,6 @@ app.post('/update-user', (req, res) => {
   
     const { phone_number, address } = req.body;
   
-    // Додамо логування, щоб перевірити, чи отримуємо значення
     console.log('Отримано дані для оновлення:', phone_number, address);
   
     if (!phone_number || !address) {
@@ -258,11 +229,10 @@ app.post('/update-user', (req, res) => {
     const query = 'UPDATE users SET phone_number = ?, address = ? WHERE username = ?';
     db.query(query, [phone_number, address, req.session.user.username], (err, results) => {
       if (err) {
-        console.error('Помилка запиту до бази даних:', err); // Логування помилки
+        console.error('Помилка запиту до бази даних:', err); 
         return res.status(500).json({ message: 'Помилка на сервері' });
       }
   
-      // Перевіряємо, чи був оновлений хоча б один рядок
       if (results.affectedRows > 0) {
         res.json({ message: 'Дані оновлено' });
       } else {
@@ -274,14 +244,12 @@ app.post('/update-user', (req, res) => {
   app.post('/api/add-to-cart', (req, res) => {
     const { product_id, quantity } = req.body;
 
-    // Перевірка, чи є користувач у сесії
     if (!req.session.user) {
         return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему перед додаванням товару до кошика' });
     }
 
-    const username = req.session.user.username; // Отримуємо username з сесії
+    const username = req.session.user.username; 
 
-    // Запит для отримання user_id за username
     const query = 'SELECT user_id FROM users WHERE username = ?';
     db.query(query, [username], (err, results) => {
         if (err) {
@@ -291,7 +259,6 @@ app.post('/update-user', (req, res) => {
         if (results.length > 0) {
             const user_id = results[0].user_id;
 
-            // Перевірка наявної кількості товару на складі
             const checkStockQuery = 'SELECT quantity_in_stock FROM products WHERE product_id = ?';
             db.query(checkStockQuery, [product_id], (err, stockResults) => {
                 if (err) {
@@ -304,12 +271,10 @@ app.post('/update-user', (req, res) => {
 
                 const availableQuantity = stockResults[0].quantity_in_stock;
 
-                // Перевірка, чи не перевищує кількість на складі
                 if (quantity > availableQuantity) {
                     return res.status(400).json({ success: false, message: 'Запитувана кількість товару перевищує наявну' });
                 }
 
-                // Перевірка, чи товар вже є в кошику
                 const checkQuery = 'SELECT * FROM cart WHERE user_id = ? AND product_id = ?';
                 db.query(checkQuery, [user_id, product_id], (err, checkResults) => {
                     if (err) {
@@ -317,8 +282,7 @@ app.post('/update-user', (req, res) => {
                     }
 
                     if (checkResults.length > 0) {
-                        // Якщо товар є в кошику, збільшуємо кількість
-                        const newQuantity = checkResults[0].quantity + parseInt(quantity, 10); // Переконатися, що кількість числова
+                        const newQuantity = checkResults[0].quantity + parseInt(quantity, 10); 
                         if (newQuantity > availableQuantity) {
                             return res.status(400).json({ success: false, message: 'Запитувана кількість товару перевищує наявну' });
                         }
@@ -331,7 +295,6 @@ app.post('/update-user', (req, res) => {
                             res.json({ success: true, message: 'Кількість товару в кошику оновлено' });
                         });
                     } else {
-                        // Якщо товару ще немає, додаємо його в кошик
                         const insertQuery = 'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)';
                         db.query(insertQuery, [user_id, product_id, quantity], (err) => {
                             if (err) {
@@ -348,7 +311,6 @@ app.post('/update-user', (req, res) => {
     });
 });
 
-// Ручка для отримання продуктів
 app.get('/api/products', (req, res) => {
   db.query('SELECT * FROM Products', (err, results) => {
     if (err) {
@@ -358,20 +320,17 @@ app.get('/api/products', (req, res) => {
   });
 });
 
-// Ручка для відображення головної сторінки
 app.get('/main', (req, res) => {
   res.sendFile(path.join(__dirname, 'html', 'main.html'));
 });
 
-// Ручка для отримання замовлення користувача
 app.get('/api/cart', (req, res) => {
   if (!req.session.user) {
       return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб переглянути кошик' });
   }
 
-  const username = req.session.user.username; // Отримуємо username з сесії
+  const username = req.session.user.username;
 
-  // Запит до бази даних для отримання товарів у кошику
   const query = `
       SELECT c.product_id, c.quantity, p.name, p.price, p.quantity_in_stock 
       FROM cart c
@@ -386,17 +345,14 @@ app.get('/api/cart', (req, res) => {
   });
 });
 
-
-// Ручка для видалення певної кількості товару з кошика
 app.post('/api/remove-from-cart', (req, res) => {
   if (!req.session.user) {
       return res.status(401).json({ message: 'Будь ласка, увійдіть у систему, щоб видаляти товари з кошика' });
   }
 
   const { product_id, quantity } = req.body;
-  const username = req.session.user.username; // Отримуємо username з сесії
+  const username = req.session.user.username;
 
-  // Перевіряємо, чи є товар в кошику
   const checkQuery = 'SELECT quantity FROM cart WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
   db.query(checkQuery, [username, product_id], (err, results) => {
       if (err) {
@@ -410,7 +366,6 @@ app.post('/api/remove-from-cart', (req, res) => {
       const currentQuantity = results[0].quantity;
 
       if (currentQuantity <= quantity) {
-          // Видалити товар, якщо кількість в кошику менша або рівна запитуваній
           const deleteQuery = 'DELETE FROM cart WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
           db.query(deleteQuery, [username, product_id], (err) => {
               if (err) {
@@ -419,7 +374,6 @@ app.post('/api/remove-from-cart', (req, res) => {
               res.json({ success: true, message: 'Товар видалено з кошика' });
           });
       } else {
-          // Оновити кількість товару в кошику
           const newQuantity = currentQuantity - quantity;
           const updateQuery = 'UPDATE cart SET quantity = ? WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND product_id = ?';
           db.query(updateQuery, [newQuantity, username, product_id], (err) => {
@@ -432,7 +386,6 @@ app.post('/api/remove-from-cart', (req, res) => {
   });
 });
 
-// Ручка для оформлення замовлення
 app.post('/api/place-order', (req, res) => {
   if (!req.session.user) {
       return res.status(401).json({ success: false, message: 'Будь ласка, увійдіть у систему, щоб оформити замовлення' });
@@ -440,13 +393,11 @@ app.post('/api/place-order', (req, res) => {
 
   const username = req.session.user.username;
 
-  // Починаємо транзакцію
   db.beginTransaction((err) => {
       if (err) {
           return res.status(500).json({ success: false, message: 'Помилка при створенні транзакції' });
       }
 
-      // Отримуємо user_id за username
       const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
       db.query(getUserIdQuery, [username], (err, userResults) => {
           if (err || userResults.length === 0) {
@@ -458,7 +409,6 @@ app.post('/api/place-order', (req, res) => {
 
           const user_id = userResults[0].user_id;
 
-          // Створюємо нове замовлення
           const createOrderQuery = 'INSERT INTO orders (user_id) VALUES (?)';
           db.query(createOrderQuery, [user_id], (err, orderResults) => {
               if (err) {
@@ -470,7 +420,6 @@ app.post('/api/place-order', (req, res) => {
 
               const order_id = orderResults.insertId;
 
-              // Отримуємо товари з кошика
               const getCartQuery = 'SELECT product_id, quantity FROM cart WHERE user_id = ?';
               db.query(getCartQuery, [user_id], (err, cartResults) => {
                   if (err || cartResults.length === 0) {
@@ -480,7 +429,6 @@ app.post('/api/place-order', (req, res) => {
                       return;
                   }
 
-                  // Переносимо товари з кошика до order_items
                   const insertOrderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity) VALUES ?';
                   const orderItemsData = cartResults.map(item => [order_id, item.product_id, item.quantity]);
 
@@ -492,7 +440,6 @@ app.post('/api/place-order', (req, res) => {
                           return;
                       }
 
-                      // Зменшуємо кількість товарів у products
                       const updateProductQuantitiesQuery = `
                           UPDATE products p
                           JOIN order_items oi ON p.product_id = oi.product_id
@@ -507,7 +454,6 @@ app.post('/api/place-order', (req, res) => {
                               return;
                           }
 
-                          // Очищаємо кошик
                           const clearCartQuery = 'DELETE FROM cart WHERE user_id = ?';
                           db.query(clearCartQuery, [user_id], (err) => {
                               if (err) {
@@ -517,7 +463,6 @@ app.post('/api/place-order', (req, res) => {
                                   return;
                               }
 
-                              // Завершуємо транзакцію
                               db.commit((err) => {
                                   if (err) {
                                       db.rollback(() => {
@@ -546,7 +491,6 @@ app.get('/api/user-orders', (req, res) => {
 
   const username = req.session.user.username;
 
-  // Отримуємо user_id
   const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
   db.query(getUserIdQuery, [username], (err, userResults) => {
       if (err || userResults.length === 0) {
@@ -555,7 +499,6 @@ app.get('/api/user-orders', (req, res) => {
 
       const userId = userResults[0].user_id;
 
-      // Отримуємо замовлення користувача
       const getOrdersQuery = `
           SELECT o.order_id, oi.product_id, oi.quantity, p.name
           FROM orders o
@@ -570,7 +513,6 @@ app.get('/api/user-orders', (req, res) => {
 
           const ordersMap = {};
 
-          // Групуємо товари за замовленням
           ordersResults.forEach(item => {
               if (!ordersMap[item.order_id]) {
                   ordersMap[item.order_id] = {
@@ -602,7 +544,6 @@ app.get('/api/user-orders', (req, res) => {
 
   const username = req.session.user.username;
 
-  // Отримуємо user_id
   const getUserIdQuery = 'SELECT user_id FROM users WHERE username = ?';
   db.query(getUserIdQuery, [username], (err, userResults) => {
       if (err || userResults.length === 0) {
@@ -611,7 +552,6 @@ app.get('/api/user-orders', (req, res) => {
 
       const userId = userResults[0].user_id;
 
-      // Отримуємо замовлення користувача
       const getOrdersQuery = `
           SELECT o.order_id, oi.product_id, oi.quantity, p.name
           FROM orders o
@@ -627,7 +567,6 @@ app.get('/api/user-orders', (req, res) => {
 
           const ordersMap = {};
 
-          // Групуємо товари за замовленням
           ordersResults.forEach(item => {
               if (!ordersMap[item.order_id]) {
                   ordersMap[item.order_id] = {
@@ -648,11 +587,9 @@ app.get('/api/user-orders', (req, res) => {
   });
 });
 
-// Ручка для видалення замовлення за orderId
 app.delete('/api/order/:orderId', (req, res) => {
-  const orderId = req.params.orderId;  // Отримуємо orderId з параметрів маршруту
+  const orderId = req.params.orderId; 
 
-  // Спочатку отримуємо всі продукти та їх кількість для даного orderId
   db.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId], (err, items) => {
     if (err) {
       console.error('Помилка при отриманні товарів для замовлення:', err);
@@ -663,10 +600,8 @@ app.delete('/api/order/:orderId', (req, res) => {
       return res.status(404).json({ success: false, message: 'Замовлення не знайдено.' });
     }
 
-    // Оновлюємо кількість товарів у таблиці products
     let updateProductQueries = [];
     items.forEach(item => {
-      // Для кожного товару додаємо його кількість до quantity_in_stock
       updateProductQueries.push(new Promise((resolve, reject) => {
         db.query('UPDATE products SET quantity_in_stock = quantity_in_stock + ? WHERE product_id = ?', [item.quantity, item.product_id], (err) => {
           if (err) {
@@ -678,29 +613,24 @@ app.delete('/api/order/:orderId', (req, res) => {
       }));
     });
 
-    // Чекаємо, поки всі оновлення будуть завершені
     Promise.all(updateProductQueries)
       .then(() => {
-        // Тепер видаляємо елементи замовлення з таблиці order_items
         db.query('DELETE FROM order_items WHERE order_id = ?', [orderId], (err) => {
           if (err) {
             console.error('Помилка при видаленні елементів замовлення:', err);
             return res.status(500).json({ success: false, message: 'Помилка при видаленні елементів замовлення.' });
           }
 
-          // Потім видаляємо саме замовлення з таблиці orders
           db.query('DELETE FROM orders WHERE order_id = ?', [orderId], (err, result) => {
             if (err) {
               console.error('Помилка при видаленні замовлення:', err);
               return res.status(500).json({ success: false, message: 'Помилка при видаленні замовлення.' });
             }
 
-            // Якщо не було знайдено жодного замовлення для видалення
             if (result.affectedRows === 0) {
               return res.status(404).json({ success: false, message: 'Замовлення не знайдено.' });
             }
 
-            // Успішне видалення
             return res.json({ success: true, message: 'Замовлення успішно видалено.' });
           });
         });
@@ -712,9 +642,6 @@ app.delete('/api/order/:orderId', (req, res) => {
   });
 });
 
-
-
-// Запуск сервера
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

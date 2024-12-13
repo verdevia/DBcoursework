@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="uk">
+<html>
 <head>
     <meta charset="utf-8">
     <title>Акаунт</title>
@@ -49,8 +49,6 @@
             <h3>Ваші замовлення</h3>
             <div id="orders-list"></div>
         </div>
-
-        <!-- Новий блок для всіх замовлень -->
         <div class="usercont" id="all-orders-block" style="margin-left:0; width: 1300px; display:none;">
             <h3>Усі замовлення</h3>
             <div id="all-orders-list"></div>
@@ -58,7 +56,6 @@
     </div>
 
     <script>
-        // Перевірка сесії для зміни кнопок у dropdown
         fetch('/session-status')
                    .then(response => response.json())
                    .then(data => {
@@ -67,12 +64,10 @@
                        const logoutBtn = document.getElementById('logout-btn');
 
                        if (data.isLoggedIn) {
-                           // Якщо користувач увійшов
                            loginBtn.style.display = 'none';
                            accountBtn.style.display = 'block';
                            logoutBtn.style.display = 'block';
                        } else {
-                           // Якщо користувач не увійшов
                            loginBtn.style.display = 'block';
                            accountBtn.style.display = 'none';
                            logoutBtn.style.display = 'none';
@@ -84,13 +79,12 @@
         let currentAddress = '';
         let userRole = '';
 
-        // Завантаження інформації про користувача
         fetch('/user-data?username=' + username)
             .then(response => response.json())
             .then(data => {
                 currentPhoneNumber = data.phone_number || '';
                 currentAddress = data.address || '';
-                userRole = data.role || ''; // Зберігаємо роль користувача
+                userRole = data.role || '';
 
                 const userInfo = `
                     <p>Логін: ${data.username || 'немає'}</p>
@@ -101,17 +95,15 @@
                 `;
                 document.getElementById('user-info').innerHTML = userInfo;
 
-                // Якщо роль admin, показуємо блок всіх замовлень
                 if (userRole === 'admin') {
                     document.getElementById('all-orders-block').style.display = 'block';
-                    loadAllOrders(); // Завантажуємо всі замовлення
+                    loadAllOrders(); 
                 }
             })
             .catch(error => {
                 document.getElementById('user-info').innerHTML = 'Не вдалося отримати дані користувача';
             });
 
-        // Завантаження замовлень користувача
         fetch('/api/user-orders?username=' + username)
             .then(response => response.json())
             .then(data => {
@@ -145,7 +137,6 @@
                 }
             });
 
-        // Функція завантаження всіх замовлень
         function loadAllOrders() {
             fetch('/api/all-orders')
                 .then(response => response.json())
@@ -181,7 +172,6 @@
                 });
         }
 
-        // Додавання обробників для видалення замовлень
         function attachDeleteOrderHandlers() {
             const deleteButtons = document.querySelectorAll('.delete-order-btn');
             deleteButtons.forEach(button => {
@@ -213,16 +203,12 @@
             });
         }
 
-        // Оновлення даних користувача
         document.getElementById('update-form').addEventListener('submit', async (event) => {
             event.preventDefault();
 
             const phoneNumber = document.getElementById('phone_number').value || currentPhoneNumber;
             const address = document.getElementById('address').value || currentAddress;
-
-            // Регулярний вираз для перевірки телефону
             const phoneRegex = /^\+38-0\d{2}-\d{3}-\d{2}-\d{2}$/;
-            // Регулярний вираз для перевірки адреси
             const addressRegex = /^м\.\s?[A-Za-zА-Яа-яІіЇїЄє]+,?\s?вул\.\s?[A-Za-zА-Яа-яІіЇїЄє\s\d]+(\s?№\s?\d+)?(\s?,?\s?кв\.\s?\d+)?$/;
 
             if (!phoneRegex.test(phoneNumber)) {
@@ -255,8 +241,6 @@
         });
     });
 </script>
-
-    </script>
 </body>
 </html>
 

@@ -8,9 +8,9 @@
                     <div class="bg"></div>
                     <a>Акаунт</a>
                     <div class="dropdown">
-                        <a id="login-btn" href="ent.html">Увійти</a> <!-- Кнопка для входу -->
-                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a> <!-- Кнопка для акаунта -->
-                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> <!-- Кнопка для виходу -->
+                        <a id="login-btn" href="ent.html">Увійти</a>
+                        <a id="account-btn" href="account.html" style="display:none;">Кабінет</a>
+                        <a id="logout-btn" href="logout" style="display:none;">Вийти</a> 
                     </div>
                 </div>
                 <div class="container">
@@ -28,7 +28,7 @@
 
         <div class="ent">
             <div class="entmen">
-            <h1>Регистрація</h1>
+            <h1>Реєстрація</h1>
 
             <script>
                 const urlParams = new URLSearchParams(window.location.search);
@@ -37,7 +37,6 @@
                     alert(errorMessage);
                 }
 
-                // Перевірка сесії для зміни кнопок у dropdown
                 fetch('/session-status')
                     .then(response => response.json())
                     .then(data => {
@@ -58,37 +57,31 @@
                         }
                     });
 
-                // Функція для перевірки форми
                 function validateForm(event) {
-                    // Отримуємо значення полів форми
                     const username = document.querySelector('input[name="username"]').value;
                     const password = document.querySelector('input[name="pwd"]').value;
                     const email = document.querySelector('input[name="mail"]').value;
 
-                    // Перевірка довжини логіну
                     if (username.length < 2 || username.length > 14) {
                         alert('Логін повинен бути від 2 до 14 символів');
-                        event.preventDefault();  // Зупиняємо відправку форми
+                        event.preventDefault(); 
                         return;
                     }
 
-                    // Перевірка довжини пароля
                     if (password.length < 5 || password.length > 20) {
                         alert('Пароль повинен бути від 5 до 20 символів');
-                        event.preventDefault();  // Зупиняємо відправку форми
+                        event.preventDefault();  
                         return;
                     }
 
-                    // Перевірка коректності email
                     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
                     if (!emailRegex.test(email)) {
                         alert('Введіть коректну пошту (наприклад, example@domain.com)');
-                        event.preventDefault();  // Зупиняємо відправку форми
+                        event.preventDefault();  
                         return;
                     }
                 }
 
-                // Додаємо обробник події на форму для валідації
                 document.addEventListener('DOMContentLoaded', function() {
                     const form = document.querySelector('form');
                     if (form) {

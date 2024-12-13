@@ -146,22 +146,19 @@ background-size: cover;
     display: flex;
     flex-direction: row;
     background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), url("/img/greenwp2.jpg");
-    background-size: 100% 100%; /* Ensures the background image maintains its natural size */
+    background-size: 100% 100%;
     overflow: auto;
     overflow-y: scroll;
 }
 
-
-/* Container for the product grid */
 #product-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Creates a flexible grid */
-    gap: 20px; /* Space between grid items */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px; 
     padding: 20px;
     box-sizing: border-box;
 }
 
-/* Product item styles */
 .product {
     border: 1px solid #ddd;
     padding: 15px;
@@ -174,16 +171,14 @@ background-size: cover;
     height: 650px;
 }
 
-/* Product image styles */
 .product-image {
     width: 200px;
     height: 200px;
-    margin-bottom: 15px; /* Space below the image */
-    object-fit: cover; /* Ensures the image fits the box without distortion */
-    border-radius: 4px; /* Optional: rounded corners for the image */
+    margin-bottom: 15px; 
+    object-fit: cover; 
+    border-radius: 4px;
 }
 
-/* Product name and details */
 .product-details {
     font-family: Arial, Helvetica, sans-serif;
     text-align: left;
@@ -201,7 +196,6 @@ background-size: cover;
     font-size: 14pt;
 }
 
-/* Optional: Hover effect for the product */
 .product:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
